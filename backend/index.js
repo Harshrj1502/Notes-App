@@ -8,7 +8,7 @@ mongoose
     .catch((e) => {
         console.log(e);
     })
-import express from "express";
+import express, { json } from "express";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import authenticateToken from "./utilities.js";
@@ -71,8 +71,7 @@ app.post("/create-account", async (req, res) => {
         message: "successful"
     });
 })
-
-// login account
+// logincount
 app.post("/login-account", async (req, res) => {
     const { email, password } = req.body;
     if (!email) {
@@ -114,21 +113,24 @@ app.post("/login-account", async (req, res) => {
             })
     }
 })
+// add note
 app.post("/add-note", authenticateToken, async (req, res) => {
     const { title, content, tags } = req.body;
     const { user } = req.user;
+    console.log(user);
+    console.log(user._id);
 
     if (!title) {
-        return res.status(400).json({ eroor: true, message: "title is required" })
+        return res.status(400).json({ error: true, message: "title is required" })
     }
     if (!content) {
-        return res.status(400).json({ eroor: true, message: "content is required" })
+        return res.status(400).json({ error: true, message: "content is required" })
     }
     try {
         const note = new Note({
             title, content,
             tags: tags || [],
-            userId: user._Id
+            userId: "668e99a96eca1a2160a2592c",
         });
         await note.save();
         return res.json({
@@ -139,30 +141,100 @@ app.post("/add-note", authenticateToken, async (req, res) => {
     }
     catch (error) {
         return res.status(500).json({
-            eroor: true,
+            error: true,
             message: "internal server error"
         })
     }
 })
-
-app.put("/edit-note:noteId", authenticateToken, async (req, res) => {
+// edit note
+app.put("/edit-note/:noteId", authenticateToken, async (req, res) => {
     const noteId = req.params.noteId;
-    const { title, content, tags, isPinned } = req.body;
-    const { user } = req.user;
+    const { title, tags, isPinned, content } = req.body;
+    const { user } = req.user
 
-    if (!title && !content && !tags) {
-        res.status(400)
-            .json({
-                error: true,
-                message: "no info privided"
-            })
+    if (!title && !tags && !content) {
+        return res
+            .status(400)
+            .json({ error: true, message: "no changes" })
     }
     try {
-        const note = await Note.findOne({ _id: noteId, userId: ServiceWorker._id })
-    } catch {
+        const note = await Note.findOne({ _id: noteId, userId: "668e99a96eca1a2160a2592c", })
+
+
+        if (!note) {
+            res.status(404)
+                .json({ error: true, message: "note not found" })
+        }
+
+        if (title) note.title = title;
+        if (content) note.content = content;
+        if (isPinned) note.isPinned = isPinned;
+        if (tags) note.tags = tags;
+
+        await note.save();
+        return res.json({
+            error: false,
+            note, message: "updated successfully"
+        })
+    }
+    catch (error) {
+        return res.status(500).json({
+            error: true,
+            message: "internal server error"
+        })
 
     }
 })
+// get note 
+app.get("/get-note/", authenticateToken, async(req, res) => {
+    const { user } = req.user;
+    console.log(user);
+    console.log(user._id);
+    try {
+        const notes =  await Note.find({ userId: "668e99a96eca1a2160a2592c"}).sort({ isPinned: -1 })
+        return res.json({
+            error: false,
+            notes, message: "all notes retrived succefully"
+        })
+    }
+    catch (error) {
+        return res.status(500)
+        .json({
+            error:true,message:"internal server error"
+        })
+    }
+})
+// delete note
+app.delete("/delete-note/", authenticateToken, async(req, res) => {
+    // const noteId=req.params.noteId;
+    const noteId="66967885d870f19995837bb4";
+    const { user } = req.user;
+    console.log(user);
+    console.log(user._id);
+    console.log(noteId);
+    try {
+        const note =  await Note.find({_id:noteId, userId: "668e99a96eca1a2160a2592c"})
+        if(!note){
+            return res.status(404).json({
+                error:true,
+                message:"note not found"
+            })
+        }
+        await Note.deleteOne({_id:noteId,userId:"668e99a96eca1a2160a2592c"})
+        return res.json({
+            error:false,
+            message:"note deleted succefully"
+        })
+
+    }
+    catch (error) {
+        return res.status(500)
+        .json({
+            error:true,message:"internal server error"
+        })
+    }
+})
+
 
 
 app.listen(8000);
